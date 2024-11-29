@@ -1,34 +1,38 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Starter Kit",
+  "name": "Quokka",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#0D9373",
-    "light": "#07C983",
-    "dark": "#0D9373",
+    "primary": "#9609DE",
+    "light": "#BB70E1",
+    "dark": "#54007F",
     "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
+      "from": "#54007F",
+      "to": "#BB70E1"
     }
   },
   "topbarLinks": [
     {
-      "name": "Support",
-      "url": "mailto:hi@mintlify.com"
+      "name": "Suggest Features",
+      "url": "mailto:jeremiahlena13@gmail.com"
     }
   ],
   "topbarCtaButton": {
-    "name": "Dashboard",
-    "url": "https://dashboard.mintlify.com"
+    "name": "Github",
+    "url": "https://github.comm/lenajeremy/quokka"
   },
   "tabs": [
     {
       "name": "API Reference",
       "url": "api-reference"
+    },
+    {
+      "name": "Tabulation",
+      "url": "tabulation"
     }
   ],
   "anchors": [
@@ -80,6 +84,13 @@
         "api-reference/endpoint/get",
         "api-reference/endpoint/create",
         "api-reference/endpoint/delete"
+      ]
+    },
+    {
+      "group": "Tabulation",
+      "pages": [
+        "tabulation/get-started",
+        "tabulation/what-is-tabulation"
       ]
     }
   ],
