@@ -1,0 +1,156 @@
+---
+title: Tag-based Invalidation
+description: How mutations automatically keep query data fresh.
+---
+
+## The problem
+
+After a mutation succeeds (creating, updating, or deleting data), the cached query responses that depended on that data are now stale. Without automatic invalidation, your UI would show outdated data until the user manually refreshes.
+
+quokkajs solves this with **tag-based cache invalidation**: queries declare what data they provide, mutations declare what data they invalidate, and the library connects the dots automatically.
+
+---
+
+## How it works
+
+1. A query is defined with `providesTags` — the tags that describe its data
+2. A mutation is defined with `invalidatesTags` — the tags it should bust on success
+3. When a mutation succeeds, quokkajs finds all cached query entries whose tags overlap with the mutation's `invalidatesTags` and re-triggers them in the background
+
+```
+mutation succeeds
+  │
+  └─ For each cache entry in the API:
+        Does entry.tags overlap with mutation.invalidatesTags?
+          │
+          ├─ YES → Re-trigger the query with its last-used args
+          └─ NO  → Leave as-is
+```
+
+---
+
+## Basic example
+
+```ts api/todoApi.ts
+import { createApi } from 'quokkajs';
+
+const todoApi = createApi({
+  apiName: 'todoApi',
+  baseUrl: 'https://api.example.com',
+  tags: ['todos'],
+  endpoints: (builder) => ({
+    getTodos: builder.query<string, Todo[]>((search) => ({
+      url: '/todos',
+      params: { search },
+    }), {
+      providesTags: ['todos'],   // ← this query "owns" the todos tag
+    }),
+
+    createTodo: builder.mutation<{ title: string }, Todo>((body) => ({
+      url: '/todos',
+      method: 'POST',
+      body,
+    }), {
+      invalidatesTags: ['todos'], // ← bust todos cache on success
+    }),
+
+    deleteTodo: builder.mutation<{ id: number }, void>((args) => ({
+      url: `/todos/${args.id}`,
+      method: 'DELETE',
+    }), {
+      invalidatesTags: ['todos'], // ← also busts todos cache
+    }),
+  }),
+});
+```
+
+When `createTodo` or `deleteTodo` succeed, `useGetTodosQuery` automatically re-fetches. No manual refetch, no state management needed.
+
+---
+
+## Tag types
+
+`TagType<T>` supports three forms, which can be mixed in the same array:
+
+### Plain strings
+
+The simplest form. A mutation invalidates any query that provides the same string.
+
+```ts
+providesTags: ['todos']
+invalidatesTags: ['todos']
+```
+
+### Objects with `key` and `id`
+
+Use this for fine-grained per-item invalidation. Useful when you want a mutation to only invalidate the cache for a specific record.
+
+```ts
+// Query provides a tag for the specific post it fetched
+providesTags: [{ key: 'posts', id: 42 }]
+
+// Mutation only invalidates that specific post's cache, not all posts
+invalidatesTags: [{ key: 'posts', id: 42 }]
+```
+
+### Functions
+
+Tags can also be functions that return a string or `{ key, id }` object. The function is called at match time, allowing dynamic tag values.
+
+```ts
+providesTags: [(result) => ({ key: 'posts', id: result?.id })]
+```
+
+---
+
+## Multi-tag invalidation
+
+A single mutation can invalidate multiple tags, and a query can provide multiple tags:
+
+```ts
+createPost: builder.mutation<NewPost, Post>((body) => ({
+  url: '/posts',
+  method: 'POST',
+  body,
+}), {
+  invalidatesTags: ['posts', 'feed', { key: 'user', id: body.authorId }],
+}),
+```
+
+---
+
+## Real-world example: Todo app
+
+```tsx App.tsx
+function TodoApp() {
+  const { data: todos, loading } = useGetTodosQuery('', {
+    fetchOnRender: true,
+  });
+
+  const { trigger: createTodo } = useCreateTodoMutation();
+  const { trigger: deleteTodo } = useDeleteTodoMutation();
+  const { trigger: markDone } = useMarkAsDoneMutation();
+
+  // After any of these trigger calls succeed,
+  // useGetTodosQuery re-fetches automatically.
+  return (
+    <div>
+      {loading && <p>Loading...</p>}
+      {todos?.map((todo) => (
+        <div key={todo.id}>
+          <input
+            type="checkbox"
+            checked={todo.isDone}
+            onChange={() => markDone({ id: todo.id })}
+          />
+          <span>{todo.title}</span>
+          <button onClick={() => deleteTodo({ id: todo.id })}>Delete</button>
+        </div>
+      ))}
+      <button onClick={() => createTodo({ title: 'New task' })}>
+        Add Task
+      </button>
+    </div>
+  );
+}
+```

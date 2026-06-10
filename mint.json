@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Quokka",
+  "name": "quokkajs",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
@@ -22,34 +22,19 @@
     }
   ],
   "topbarCtaButton": {
-    "name": "Github",
-    "url": "https://github.comm/lenajeremy/quokka"
+    "name": "GitHub",
+    "url": "https://github.com/lenajeremy/quokka"
   },
-  "tabs": [
-    {
-      "name": "API Reference",
-      "url": "api-reference"
-    },
-    {
-      "name": "Tabulation",
-      "url": "tabulation"
-    }
-  ],
   "anchors": [
     {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://mintlify.com/docs"
+      "name": "npm",
+      "icon": "npm",
+      "url": "https://npmjs.com/package/quokkajs"
     },
     {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://mintlify.com/community"
-    },
-    {
-      "name": "Blog",
-      "icon": "newspaper",
-      "url": "https://mintlify.com/blog"
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/lenajeremy/quokka"
     }
   ],
   "navigation": [
@@ -57,46 +42,30 @@
       "group": "Get Started",
       "pages": [
         "introduction",
-        "quickstart",
-        "development"
+        "quickstart"
       ]
     },
     {
-      "group": "Essentials",
+      "group": "Core Concepts",
       "pages": [
-        "essentials/markdown",
-        "essentials/code",
-        "essentials/images",
-        "essentials/settings",
-        "essentials/navigation",
-        "essentials/reusable-snippets"
+        "concepts/queries",
+        "concepts/caching",
+        "concepts/invalidation"
       ]
     },
     {
-      "group": "API Documentation",
+      "group": "API Reference",
       "pages": [
-        "api-reference/introduction"
-      ]
-    },
-    {
-      "group": "Endpoint Examples",
-      "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
-      ]
-    },
-    {
-      "group": "Tabulation",
-      "pages": [
-        "tabulation/get-started",
-        "tabulation/what-is-tabulation"
+        "api-reference/create-api",
+        "api-reference/quokka-provider",
+        "api-reference/query-hooks",
+        "api-reference/mutation-hooks",
+        "api-reference/use-fetch"
       ]
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/mintlify",
-    "github": "https://github.com/mintlify",
-    "linkedin": "https://linkedin.com/company/mintlify"
+    "github": "https://github.com/lenajeremy",
+    "linkedin": "https://linkedin.com/in/jeremiah-lena"
   }
 }

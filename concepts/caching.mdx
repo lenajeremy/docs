@@ -1,0 +1,91 @@
+---
+title: Caching
+description: How quokkajs stores and serves query responses.
+---
+
+## Overview
+
+quokkajs maintains an **in-memory cache** scoped to the `QuokkaProvider` instance. Every successful query response is stored and served on subsequent identical requests — without hitting the network.
+
+<Info>
+  The cache lives inside `QuokkaProvider`. Each provider instance has its own isolated cache. If you have multiple providers, they do not share state.
+</Info>
+
+---
+
+## How cache keys are generated
+
+Each cache entry is keyed by a **SHA-256 hash** of the fully-resolved request parameters: URL, method, headers, query params, and body.
+
+Before hashing, the parameters object is **recursively sorted by key**. This ensures two objects with the same properties in different orders produce the same hash — so `{ page: 1, query: 'cats' }` and `{ query: 'cats', page: 1 }` resolve to the same cache entry.
+
+```
+Request params → sort keys recursively → JSON.stringify → SHA-256 hash → cache key
+```
+
+---
+
+## Cache hit vs. miss
+
+```
+trigger(args)
+  │
+  ├─ Resolve full request params (baseUrl + url + params + headers)
+  │
+  ├─ Generate SHA-256 cache key
+  │
+  ├─ Cache hit? ──→ YES ──→ Return cached value immediately (no network request)
+  │
+  └─ Cache miss ──→ Fetch from network
+                      │
+                      ├─ Success → Store in cache → Return data
+                      └─ Failure → Set error state → Throw
+```
+
+<Note>
+  Cache lookup only happens when `fetchFromCache` is `true` — which is the case for all automatic fetches (`fetchOnRender`, `fetchOnArgsChange`). Manually calling `trigger` always goes to the network.
+</Note>
+
+---
+
+## What gets cached
+
+Only **query** responses are cached. Mutations are never cached — they always hit the network.
+
+Each cache entry stores:
+- The response data
+- The request params (used to re-trigger the query during invalidation)
+- The tags the query provided (used for tag matching during invalidation)
+- A validity flag (`isValid`) that is set to `false` when a matching mutation invalidates it
+
+---
+
+## Cache lifetime
+
+<Warning>
+  The cache has **no TTL**. Entries remain valid indefinitely until explicitly invalidated by a mutation with a matching `invalidatesTags`.
+</Warning>
+
+If you need data to stay fresh, use `pollingInterval` or `refetchOnFocus` on your query hooks rather than relying on the cache expiring.
+
+---
+
+## Inspecting the cache
+
+You can access the raw `CacheManager` instance from `useQuokkaContext()` for debugging:
+
+```tsx
+import { useQuokkaContext } from 'quokkajs';
+
+function DebugPanel() {
+  const { cacheManager } = useQuokkaContext();
+
+  return (
+    <pre>
+      {JSON.stringify(cacheManager?.apis, null, 2)}
+    </pre>
+  );
+}
+```
+
+The `apis` object is keyed by `apiName`, then contains an array of `CacheEntry` objects — each with `id` (the hash), `name` (the hook name), `result`, `tags`, and `isValid`.

@@ -1,86 +1,162 @@
 ---
-title: 'Quickstart'
-description: 'Start building awesome documentation in under 5 minutes'
+title: Quick Start
+description: Get up and running with quokkajs in under 5 minutes.
 ---
 
-## Setup your development
+## Installation
 
-Learn how to update your docs locally and deploy them to the public.
+<CodeGroup>
+  ```bash npm
+  npm install quokkajs
+  ```
+  ```bash yarn
+  yarn add quokkajs
+  ```
+</CodeGroup>
 
-### Edit and preview
+quokkajs requires React 18 or higher as a peer dependency.
 
-<AccordionGroup>
-  <Accordion icon="github" title="Clone your docs locally">
-    During the onboarding process, we created a repository on your Github with
-    your docs content. You can find this repository on our
-    [dashboard](https://dashboard.mintlify.com). To clone the repository
-    locally, follow these
-    [instructions](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository)
-    in your terminal.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Preview changes">
-    Previewing helps you make sure your changes look as intended. We built a
-    command line interface to render these changes locally. 1. Install the
-    [Mintlify CLI](https://www.npmjs.com/package/mintlify) to preview the
-    documentation changes locally with this command: ``` npm i -g mintlify ```
-    2. Run the following command at the root of your documentation (where
-    `mint.json` is): ``` mintlify dev ```
-  </Accordion>
-</AccordionGroup>
+---
 
-### Deploy your changes
+## Step 1: Wrap your app in QuokkaProvider
 
-<AccordionGroup>
+`QuokkaProvider` sets up the shared in-memory cache and gives hooks access to your global state (for injecting auth tokens, etc.).
 
-<Accordion icon="message-bot" title="Install our Github app">
-  Our Github app automatically deploys your changes to your docs site, so you
-  don't need to manage deployments yourself. You can find the link to install on
-  your [dashboard](https://dashboard.mintlify.com). Once the bot has been
-  successfully installed, there should be a check mark next to the commit hash
-  of the repo.
-</Accordion>
-<Accordion icon="rocket" title="Push your changes">
-  [Commit and push your changes to
-  Git](https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository#about-git-push)
-  for your changes to update in your docs site. If you push and don't see that
-  the Github app successfully deployed your changes, you can also manually
-  update your docs through our [dashboard](https://dashboard.mintlify.com).
-</Accordion>
+```tsx main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { QuokkaProvider } from 'quokkajs';
+import App from './App';
 
-</AccordionGroup>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QuokkaProvider getState={() => {}}>
+    <App />
+  </QuokkaProvider>
+);
+```
 
-## Update your docs
+<Note>
+  If you use Zustand or Redux, pass your store's `getState` function — e.g. `useStore.getState` or `store.getState`. This lets you read state (like an auth token) inside `prepareHeaders`. If you don't have a global store, `() => {}` is fine.
+</Note>
 
-Add content directly in your files with MDX syntax and React components. You can use any of our components, or even build your own.
+---
 
-<CardGroup>
+## Step 2: Define your API
 
-<Card title="Style Your Docs" icon="paintbrush" href="/settings/global">
-  Add flair to your docs with personalized branding.
-</Card>
+Use `createApi` to describe your endpoints. Each key in `endpoints` becomes a hook.
 
-<Card
-  title="Add API Endpoints"
-  icon="square-code"
-  href="/api-playground/configuration"
->
-  Implement your OpenAPI spec and enable API user interaction.
-</Card>
+```ts api/todoApi.ts
+import { createApi } from 'quokkajs';
 
-<Card
-  title="Integrate Analytics"
-  icon="chart-mixed"
-  href="/analytics/supported-integrations"
->
-  Draw insights from user interactions with your documentation.
-</Card>
+type Todo = {
+  id: number;
+  title: string;
+  isDone: boolean;
+};
 
-<Card
-  title="Host on a Custom Domain"
-  icon="browser"
-  href="/settings/custom-domain/subdomain"
->
-  Keep your docs on your own website's subdomain.
-</Card>
+const todoApi = createApi({
+  apiName: 'todoApi',
+  baseUrl: 'https://api.example.com',
+  tags: ['todos'],
+  endpoints: (builder) => ({
+    getTodos: builder.query<string, Todo[]>((search) => ({
+      url: '/todos',
+      params: { search },
+    }), { providesTags: ['todos'] }),
 
+    createTodo: builder.mutation<{ title: string }, Todo>((body) => ({
+      url: '/todos',
+      method: 'POST',
+      body,
+    }), { invalidatesTags: ['todos'] }),
+
+    deleteTodo: builder.mutation<{ id: number }, void>((args) => ({
+      url: `/todos/${args.id}`,
+      method: 'DELETE',
+    }), { invalidatesTags: ['todos'] }),
+  }),
+});
+
+export const {
+  useGetTodosQuery,
+  useCreateTodoMutation,
+  useDeleteTodoMutation,
+} = todoApi.actions;
+```
+
+<Info>
+  Hook names are derived automatically from your endpoint keys:
+  `getTodos` → `useGetTodosQuery`, `createTodo` → `useCreateTodoMutation`.
+</Info>
+
+---
+
+## Step 3: Use the hooks in your components
+
+```tsx App.tsx
+import React from 'react';
+import {
+  useGetTodosQuery,
+  useCreateTodoMutation,
+  useDeleteTodoMutation,
+} from './api/todoApi';
+
+function TodoList() {
+  const [search, setSearch] = React.useState('');
+  const { data: todos, loading, error } = useGetTodosQuery(search, {
+    fetchOnRender: true,
+    fetchOnArgsChange: true,
+    debouncedDuration: 300,
+  });
+
+  const { trigger: createTodo } = useCreateTodoMutation();
+  const { trigger: deleteTodo } = useDeleteTodoMutation();
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Something went wrong.</p>;
+
+  return (
+    <div>
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search todos..."
+      />
+
+      {todos?.map((todo) => (
+        <div key={todo.id}>
+          <span>{todo.title}</span>
+          <button onClick={() => deleteTodo({ id: todo.id })}>Delete</button>
+        </div>
+      ))}
+
+      <button onClick={() => createTodo({ title: 'New todo' })}>
+        Add Todo
+      </button>
+    </div>
+  );
+}
+```
+
+<Note>
+  When `createTodo` or `deleteTodo` succeeds, `useGetTodosQuery` **automatically re-fetches** because their `invalidatesTags` overlaps the query's `providesTags`. No manual refetch needed.
+</Note>
+
+---
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Queries & Mutations" icon="arrows-split-up-and-left" href="/concepts/queries">
+    Learn all the options available on query and mutation hooks.
+  </Card>
+  <Card title="Caching" icon="database" href="/concepts/caching">
+    Understand how the request cache works under the hood.
+  </Card>
+  <Card title="Tag Invalidation" icon="tags" href="/concepts/invalidation">
+    Deep dive into tag-based automatic cache invalidation.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/create-api">
+    Full reference for createApi, QuokkaProvider, and all hooks.
+  </Card>
 </CardGroup>

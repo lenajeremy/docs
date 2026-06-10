@@ -1,71 +1,93 @@
 ---
 title: Introduction
-description: 'Welcome to the home of your new documentation'
+description: A lightweight, type-safe data-fetching library for React.
 ---
 
-{/* <img */}
-{/*   className="block dark:hidden" */}
-{/*   src="/images/hero-light.svg" */}
-{/*   alt="Hero Light" */}
-{/* /> */}
-{/* <img */}
-{/*   className="hidden dark:block" */}
-{/*   src="/images/hero-dark.svg" */}
-{/*   alt="Hero Dark" */}
-{/* /> */}
+**quokkajs** lets you define your API endpoints once and get fully typed React hooks back automatically — with built-in caching, tag-based cache invalidation, debouncing, polling, and more.
 
-## Setting up
+Inspired by [RTK Query](https://redux-toolkit.js.org/rtk-query/overview), but without the Redux dependency.
 
-The first step to world-class documentation is setting up your editing environments.
+```bash
+npm install quokkajs
+# or
+yarn add quokkajs
+```
+
+---
+
+## Why quokkajs?
+
+Every React app that talks to an API ends up writing the same boilerplate: `useState` for data, loading, and error; `useEffect` to trigger the fetch; manual cache invalidation after mutations. quokkajs eliminates all of it.
+
+You describe your endpoints. quokkajs generates the hooks.
+
+```ts
+// Define once
+const todoApi = createApi({
+  apiName: 'todoApi',
+  baseUrl: 'https://api.example.com',
+  endpoints: (builder) => ({
+    getTodos: builder.query<void, Todo[]>(() => ({ url: '/todos' })),
+    createTodo: builder.mutation<{ title: string }, Todo>((body) => ({
+      url: '/todos',
+      method: 'POST',
+      body,
+    })),
+  }),
+});
+
+// Use anywhere
+export const { useGetTodosQuery, useCreateTodoMutation } = todoApi.actions;
+```
+
+---
+
+## Key Features
 
 <CardGroup cols={2}>
-  <Card
-    title="Edit Your Docs"
-    icon="pen-to-square"
-    href="https://mintlify.com/docs/quickstart"
-  >
-    Get your docs set up locally for easy development
+  <Card title="Auto-generated Hooks" icon="wand-magic-sparkles">
+    Define an endpoint key, get a `useXxxQuery` or `useXxxMutation` hook back automatically — fully typed, no boilerplate.
   </Card>
-  <Card
-    title="Preview Changes"
-    icon="image"
-    href="https://mintlify.com/docs/development"
-  >
-    Preview your changes before you push to make sure they're perfect
+  <Card title="Built-in Cache" icon="database">
+    Every query response is cached. Identical requests are served instantly without a network round-trip.
+  </Card>
+  <Card title="Tag-based Invalidation" icon="tags">
+    Mutations automatically re-fetch the right queries on success. No manual `refetch()` calls needed.
+  </Card>
+  <Card title="TypeScript-first" icon="code">
+    End-to-end type inference from endpoint definition to hook return value. Zero manual annotation required.
+  </Card>
+  <Card title="No Redux required" icon="circle-minus">
+    Works standalone with any state management setup — Zustand, Redux, Context, or nothing at all.
+  </Card>
+  <Card title="Composable options" icon="sliders">
+    Polling, debouncing, focus-refetch, and args-change reactivity — all configurable per hook call.
   </Card>
 </CardGroup>
 
-## Make it yours
+---
 
-Update your docs to your brand and add valuable content for the best user conversion.
+## How it compares
+
+| Feature | quokkajs | RTK Query | TanStack Query | SWR |
+|---|---|---|---|---|
+| Auto-generated hooks | ✅ | ✅ | ❌ | ❌ |
+| Tag-based invalidation | ✅ | ✅ | Manual | Manual |
+| Built-in cache | ✅ | ✅ | ✅ | ✅ |
+| Requires Redux | ❌ | ✅ | ❌ | ❌ |
+| TypeScript inference | ✅ | ✅ | ✅ | ✅ |
+| Polling | ✅ | ✅ | ✅ | ✅ |
+| Bundle size | Minimal | Large | Medium | Small |
+
+---
+
+## Next steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Customize Style"
-    icon="palette"
-    href="https://mintlify.com/docs/settings/global"
-  >
-    Customize your docs to your company's colors and brands
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running in under 5 minutes with a working example.
   </Card>
-  <Card
-    title="Reference APIs"
-    icon="code"
-    href="https://mintlify.com/docs/api-playground/openapi"
-  >
-    Automatically generate endpoints from an OpenAPI spec
-  </Card>
-  <Card
-    title="Add Components"
-    icon="screwdriver-wrench"
-    href="https://mintlify.com/docs/components/accordion"
-  >
-    Build interactive features and designs to guide your users
-  </Card>
-  <Card
-    title="Get Inspiration"
-    icon="stars"
-    href="https://mintlify.com/customers"
-  >
-    Check out our showcase of our favorite documentation
+  <Card title="Core Concepts" icon="book" href="/concepts/queries">
+    Understand queries, mutations, caching, and tag invalidation.
   </Card>
 </CardGroup>

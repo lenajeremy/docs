@@ -1,0 +1,191 @@
+---
+title: createApi
+description: The entry point for defining an API slice in quokkajs.
+---
+
+## Signature
+
+```ts
+function createApi<TagString, Endpoints>(
+  options: CreateApiOptions<Endpoints, TagString>
+): QuokkaApi<Endpoints, TagString>
+```
+
+---
+
+## Options
+
+<ParamField body="apiName" type="string" required>
+  A unique identifier for this API instance. Used internally as the namespace for cache entries. Must be unique across all `createApi` calls in your app.
+</ParamField>
+
+<ParamField body="baseUrl" type="string" required>
+  The base URL prepended to all endpoint URLs. Trailing slashes are handled automatically.
+
+  ```ts
+  baseUrl: 'https://api.example.com'
+  ```
+</ParamField>
+
+<ParamField body="endpoints" type="(builder: QuokkaRequestBuilder) => Endpoints" required>
+  A function that receives a `builder` and returns an object of endpoint definitions. Each key becomes a hook name.
+
+  ```ts
+  endpoints: (builder) => ({
+    getUser: builder.query<{ id: string }, User>((args) => ({
+      url: `/users/${args.id}`,
+    })),
+    deleteUser: builder.mutation<{ id: string }, void>((args) => ({
+      url: `/users/${args.id}`,
+      method: 'DELETE',
+    })),
+  })
+  ```
+</ParamField>
+
+<ParamField body="tags" type="TagType<TagString>[]">
+  Declares the full set of tags this API works with. Used for type safety — you can only use tags declared here in `providesTags` and `invalidatesTags`.
+
+  ```ts
+  tags: ['users', 'posts', 'comments']
+  ```
+</ParamField>
+
+<ParamField body="prepareHeaders" type="(getState: () => RootState, headers: Headers) => Headers">
+  A function called before every request in this API. Use it to inject auth tokens or other shared headers. Receives a `getState` function (sourced from `QuokkaProvider`) so you can read from a global store.
+
+  ```ts
+  prepareHeaders: (getState, headers) => {
+    const token = getState<RootState>().auth.token;
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return headers;
+  }
+  ```
+</ParamField>
+
+---
+
+## builder.query
+
+Defines a read endpoint. Returns a `QuokkaApiQuery` instance that generates a `useXxxQuery` hook.
+
+```ts
+builder.query<Takes, Returns>(
+  paramsFn: (args: Takes) => QuokkaApiQueryParams<TagString>,
+  options?: { providesTags?: TagType<TagString> }
+): QuokkaApiQuery<Takes, Returns, TagString>
+```
+
+### `paramsFn` return value
+
+| Field | Type | Description |
+|---|---|---|
+| `url` | `string` | Path appended to `baseUrl`. |
+| `params` | `Record<string, any>` | Query string parameters. |
+| `method` | `"GET"` | Defaults to GET. |
+| `headers` | `Headers` | Per-request headers. Merged with `prepareHeaders` output. |
+| `providesTags` | `TagType<TagString>` | Tags this query provides (can also be set in `options`). |
+
+### Example
+
+```ts
+searchImages: builder.query<{ query: string; page?: number }, ImageResponse>(
+  (args) => ({
+    url: '/search',
+    params: args,
+  }),
+  { providesTags: ['images'] }
+),
+```
+
+---
+
+## builder.mutation
+
+Defines a write endpoint. Returns a `QuokkaApiMutation` instance that generates a `useXxxMutation` hook.
+
+```ts
+builder.mutation<Takes, Returns>(
+  paramsFn: (args: Takes) => QuokkaApiMutationParams<TagString>,
+  options?: { invalidatesTags?: TagType<TagString> }
+): QuokkaApiMutation<Takes, Returns, TagString>
+```
+
+### `paramsFn` return value
+
+| Field | Type | Description |
+|---|---|---|
+| `url` | `string` | Path appended to `baseUrl`. |
+| `method` | `"POST" \| "PUT" \| "PATCH" \| "DELETE" \| "HEAD" \| "OPTIONS"` | Required. |
+| `body` | `BodyInit \| Record<string, any>` | Request body. Pass a plain object — it is serialised to JSON automatically. Pass `FormData` to send as-is. |
+| `params` | `Record<string, any>` | Query string parameters. |
+| `headers` | `Headers` | Per-request headers. |
+| `invalidatesTags` | `TagType<TagString>` | Tags to bust on success (can also be set in `options`). |
+
+### Example
+
+```ts
+createPost: builder.mutation<{ title: string; body: string }, Post>(
+  (args) => ({
+    url: '/posts',
+    method: 'POST',
+    body: args,
+  }),
+  { invalidatesTags: ['posts'] }
+),
+```
+
+---
+
+## Using prepareHeaders with Zustand
+
+```ts
+import { createStore } from 'zustand';
+
+type AuthState = { token: string | null };
+const useAuthStore = createStore<AuthState>(() => ({ token: null }));
+
+const api = createApi({
+  apiName: 'myApi',
+  baseUrl: 'https://api.example.com',
+  prepareHeaders: (getState, headers) => {
+    const { token } = getState<AuthState>();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return headers;
+  },
+  endpoints: (builder) => ({ ... }),
+});
+```
+
+Then pass the store's `getState` to `QuokkaProvider`:
+
+```tsx
+<QuokkaProvider getState={useAuthStore.getState}>
+  <App />
+</QuokkaProvider>
+```
+
+---
+
+## Using prepareHeaders with Redux
+
+```ts
+import { store } from './store'; // your Redux store
+
+const api = createApi({
+  apiName: 'myApi',
+  baseUrl: 'https://api.example.com',
+  prepareHeaders: (getState, headers) => {
+    const token = getState<RootState>().auth.token;
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return headers;
+  },
+  endpoints: (builder) => ({ ... }),
+});
+```
+
+```tsx
+<QuokkaProvider getState={store.getState}>
+  <App />
+</QuokkaProvider>
+```

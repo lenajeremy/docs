@@ -1,0 +1,185 @@
+---
+title: Query Hooks
+description: Reference for auto-generated useXxxQuery hooks.
+---
+
+## Overview
+
+Every endpoint defined with `builder.query` generates a `useXxxQuery` hook, where `Xxx` is the capitalised endpoint key.
+
+```ts
+// Endpoint key: getTodos → Hook: useGetTodosQuery
+// Endpoint key: searchImages → Hook: useSearchImagesQuery
+```
+
+---
+
+## Signature
+
+```ts
+function useXxxQuery(
+  args: Takes,
+  options?: QueryHookOptions
+): {
+  data: Returns | undefined;
+  loading: boolean;
+  initLoading: boolean;
+  error: Error | undefined;
+  trigger: (args: Takes) => Promise<Returns | undefined>;
+}
+```
+
+---
+
+## Arguments
+
+<ParamField body="args" type="Takes" required>
+  Passed to your endpoint's `paramsFn` to build the request. Evaluated on every render — when combined with `fetchOnArgsChange`, changing this value automatically re-fires the query.
+</ParamField>
+
+<ParamField body="options" type="QueryHookOptions">
+  Controls when the hook fetches automatically. See options reference below.
+</ParamField>
+
+---
+
+## Return value
+
+<ResponseField name="data" type="Returns | undefined">
+  The response data. `undefined` until a successful fetch completes.
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  `true` while any request (automatic or manual) is in flight.
+</ResponseField>
+
+<ResponseField name="initLoading" type="boolean">
+  `true` only during the very first automatic fetch. Use this to show skeleton/placeholder states without flashing a loader on every subsequent refetch.
+</ResponseField>
+
+<ResponseField name="error" type="Error | undefined">
+  Set when the request throws or returns a non-2xx HTTP status. Cleared at the start of each new request.
+</ResponseField>
+
+<ResponseField name="trigger" type="(args: Takes) => Promise<Returns | undefined>">
+  Manually fire the query. Always goes to the network — does not serve from cache.
+</ResponseField>
+
+---
+
+## QueryHookOptions
+
+<ParamField body="fetchOnRender" type="boolean" default="false">
+  Automatically fire the query when the component first mounts.
+
+  ```tsx
+  useGetTodosQuery('', { fetchOnRender: true })
+  ```
+</ParamField>
+
+<ParamField body="fetchOnArgsChange" type="boolean" default="false">
+  Re-fire the query whenever `args` changes between renders. Changes are detected by deep JSON comparison.
+
+  ```tsx
+  const [search, setSearch] = React.useState('');
+  useSearchImagesQuery({ query: search }, { fetchOnArgsChange: true })
+  ```
+</ParamField>
+
+<ParamField body="debouncedDuration" type="number" default="0">
+  Debounce automatic fetches (from `fetchOnRender` or `fetchOnArgsChange`) by this many milliseconds. Does not affect manual `trigger` calls.
+
+  ```tsx
+  useSearchImagesQuery(
+    { query },
+    { fetchOnArgsChange: true, debouncedDuration: 500 }
+  )
+  ```
+</ParamField>
+
+<ParamField body="refetchOnFocus" type="boolean" default="false">
+  Re-fire the query when the browser window regains focus (via the `window focus` event).
+
+  ```tsx
+  useGetTodosQuery('', { fetchOnRender: true, refetchOnFocus: true })
+  ```
+</ParamField>
+
+<ParamField body="pollingInterval" type="number">
+  Re-fire the query every N milliseconds using `setInterval`. The interval is started when the component mounts and cleared when it unmounts.
+
+  ```tsx
+  useGetTodosQuery('', { fetchOnRender: true, pollingInterval: 30000 })
+  ```
+</ParamField>
+
+---
+
+## Examples
+
+### Fetch on mount
+
+```tsx
+function TodoList() {
+  const { data: todos, loading, error } = useGetTodosQuery('', {
+    fetchOnRender: true,
+  });
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return <ul>{todos?.map((t) => <li key={t.id}>{t.title}</li>)}</ul>;
+}
+```
+
+### Debounced search
+
+```tsx
+function ImageSearch() {
+  const [query, setQuery] = React.useState('');
+
+  const { data, loading } = useSearchImagesQuery(
+    { query },
+    { fetchOnArgsChange: true, debouncedDuration: 500 }
+  );
+
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      {loading && <p>Searching...</p>}
+      <div>
+        {data?.photos.map((img) => (
+          <img key={img.id} src={img.src.medium} alt={img.alt} />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### Manual trigger
+
+```tsx
+function RefreshButton() {
+  const { data, loading, trigger } = useGetTodosQuery('');
+
+  return (
+    <div>
+      <button onClick={() => trigger('')} disabled={loading}>
+        {loading ? 'Refreshing...' : 'Refresh'}
+      </button>
+      {data?.map((t) => <p key={t.id}>{t.title}</p>)}
+    </div>
+  );
+}
+```
+
+### Poll + focus refetch
+
+```tsx
+const { data } = useGetTodosQuery('', {
+  fetchOnRender: true,
+  pollingInterval: 30000,  // refetch every 30s
+  refetchOnFocus: true,    // also refetch on tab focus
+});
+```

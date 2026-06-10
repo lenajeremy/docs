@@ -1,0 +1,99 @@
+---
+title: QuokkaProvider
+description: Context provider that sets up the shared cache and state accessor.
+---
+
+## Overview
+
+`QuokkaProvider` must wrap your application (or the subtree where you use quokkajs hooks). It creates a shared `CacheManager` instance and provides a `getState` function that hooks can use inside `prepareHeaders` to read global state.
+
+```tsx
+import { QuokkaProvider } from 'quokkajs';
+
+<QuokkaProvider getState={getState}>
+  <App />
+</QuokkaProvider>
+```
+
+---
+
+## Props
+
+<ParamField body="getState" type="() => RootState" required>
+  A function that returns your application's global state. Called inside `prepareHeaders` whenever a request is made, so you can inject dynamic values like auth tokens into headers.
+
+  If you don't use a global state management library, pass `() => {}`.
+</ParamField>
+
+<ParamField body="children" type="React.ReactNode" required>
+  The component tree that will have access to quokkajs hooks.
+</ParamField>
+
+---
+
+## Examples
+
+### Without a global store
+
+```tsx
+import { QuokkaProvider } from 'quokkajs';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QuokkaProvider getState={() => {}}>
+    <App />
+  </QuokkaProvider>
+);
+```
+
+### With Zustand
+
+```tsx
+import { createStore } from 'zustand';
+import { QuokkaProvider } from 'quokkajs';
+
+type Store = { token: string | null };
+const useStore = createStore<Store>(() => ({ token: null }));
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QuokkaProvider getState={useStore.getState}>
+    <App />
+  </QuokkaProvider>
+);
+```
+
+### With Redux Toolkit
+
+```tsx
+import { store } from './store';
+import { QuokkaProvider } from 'quokkajs';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QuokkaProvider getState={store.getState}>
+    <App />
+  </QuokkaProvider>
+);
+```
+
+---
+
+## Accessing the cache
+
+You can access the underlying `CacheManager` and `getState` directly in any component via `useQuokkaContext()`:
+
+```tsx
+import { useQuokkaContext } from 'quokkajs';
+
+function DebugPanel() {
+  const { cacheManager, getState } = useQuokkaContext();
+
+  return (
+    <pre>
+      {JSON.stringify(cacheManager?.apis, null, 2)}
+    </pre>
+  );
+}
+```
+
+<Warning>
+  `useQuokkaContext` is primarily intended for debugging and advanced use cases. Avoid building product features on top of direct cache access — the internal structure may change between versions.
+</Warning>

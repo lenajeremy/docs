@@ -1,0 +1,169 @@
+---
+title: useFetch
+description: A standalone data-fetching hook for one-off requests outside of createApi.
+---
+
+## Overview
+
+`useFetch` is a lower-level hook that works independently of `createApi` and `QuokkaProvider`. It accepts a `RequestInfo` and optional `RequestInit` directly — the same arguments as the native `fetch` API.
+
+Use `useFetch` when:
+- You need a single one-off request that doesn't belong to a named API slice
+- You want to fetch from a URL you only know at render time
+- You need full control over the raw request without the `createApi` abstraction
+
+<Info>
+  `useFetch` does **not** use the cache, and does **not** trigger tag-based invalidation. For cached, invalidatable requests, use `createApi` instead.
+</Info>
+
+---
+
+## Signature
+
+```ts
+function useFetch<TArgs = void, TReturns = void, TError = void>(
+  input: RequestInfo,
+  init?: RequestInit,
+  options?: {
+    fetchOnRender?: boolean;
+    fetchOnArgsChange?: boolean;
+    debouncedDuration?: number;
+  }
+): {
+  data: TReturns | undefined;
+  loading: boolean;
+  error: TError | undefined;
+  trigger: (args: TArgs) => Promise<TReturns | undefined>;
+}
+```
+
+---
+
+## Parameters
+
+<ParamField body="input" type="RequestInfo" required>
+  The URL or `Request` object to fetch. Changes are tracked by reference — when `input` changes and `fetchOnArgsChange` is enabled, the hook re-fetches.
+</ParamField>
+
+<ParamField body="init" type="RequestInit">
+  Standard `RequestInit` options (`method`, `headers`, `body`, etc.). Changes are also tracked for `fetchOnArgsChange`.
+</ParamField>
+
+<ParamField body="options.fetchOnRender" type="boolean" default="false">
+  Automatically fetch when the component first mounts.
+</ParamField>
+
+<ParamField body="options.fetchOnArgsChange" type="boolean" default="false">
+  Re-fetch when `input` or `init` changes between renders.
+</ParamField>
+
+<ParamField body="options.debouncedDuration" type="number" default="0">
+  Debounce automatic fetches by this many milliseconds.
+</ParamField>
+
+---
+
+## Return value
+
+<ResponseField name="data" type="TReturns | undefined">
+  The parsed JSON response. `undefined` until a successful fetch.
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  `true` while a request is in flight.
+</ResponseField>
+
+<ResponseField name="error" type="TError | undefined">
+  Set when the request fails or returns a non-2xx response.
+</ResponseField>
+
+<ResponseField name="trigger" type="(args: TArgs) => Promise<TReturns | undefined>">
+  Manually fire the request. The `args` value is serialised as the request body (or passed as-is if it's `FormData`).
+</ResponseField>
+
+---
+
+## Examples
+
+### Fetch on mount
+
+```tsx
+import { useFetch } from 'quokkajs';
+
+type User = { id: number; name: string; email: string };
+
+function Profile() {
+  const { data: user, loading, error } = useFetch<void, User>(
+    'https://api.example.com/me',
+    { method: 'GET', headers: { Authorization: 'Bearer my-token' } },
+    { fetchOnRender: true }
+  );
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error loading profile</p>;
+
+  return <p>Hello, {user?.name}</p>;
+}
+```
+
+### Manual trigger (form submit)
+
+```tsx
+import { useFetch } from 'quokkajs';
+
+function ContactForm() {
+  const [message, setMessage] = React.useState('');
+  const { trigger, loading, data, error } = useFetch<
+    { message: string },
+    { success: boolean }
+  >('https://api.example.com/contact', { method: 'POST' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await trigger({ message });
+    } catch {
+      // error state is set automatically
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <textarea value={message} onChange={(e) => setMessage(e.target.value)} />
+      <button type="submit" disabled={loading}>
+        {loading ? 'Sending...' : 'Send'}
+      </button>
+      {data?.success && <p>Message sent!</p>}
+      {error && <p>Failed to send message.</p>}
+    </form>
+  );
+}
+```
+
+### Reactive fetch (re-fetch on URL change)
+
+```tsx
+function UserProfile({ userId }: { userId: string }) {
+  const { data: user, loading } = useFetch<void, User>(
+    `https://api.example.com/users/${userId}`,
+    undefined,
+    { fetchOnRender: true, fetchOnArgsChange: true }
+  );
+
+  if (loading) return <p>Loading...</p>;
+  return <p>{user?.name}</p>;
+}
+```
+
+---
+
+## vs. createApi
+
+| | `useFetch` | `createApi` hooks |
+|---|---|---|
+| Caching | ❌ | ✅ |
+| Tag invalidation | ❌ | ✅ |
+| Auto-generated hook name | ❌ | ✅ |
+| TypeScript inference | Manual | Automatic |
+| `QuokkaProvider` required | ❌ | ✅ |
+| Best for | One-off requests | Named API slices |

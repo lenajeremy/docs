@@ -1,0 +1,232 @@
+---
+title: Queries & Mutations
+description: The two building blocks of a quokkajs API — and how to use them.
+---
+
+## Queries vs. Mutations
+
+quokkajs separates data operations into two types:
+
+| | Query | Mutation |
+|---|---|---|
+| **Purpose** | Read data | Write data |
+| **HTTP method** | `GET` (default) | `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` |
+| **Caching** | Cached by default | Not cached |
+| **Auto-refetch** | Yes, when invalidated | Triggers invalidation on success |
+| **Hook suffix** | `Query` | `Mutation` |
+
+---
+
+## Auto-generated hook names
+
+Hook names are derived from your endpoint key at runtime. The key is capitalised and the appropriate suffix is appended:
+
+| Endpoint key | Builder type | Generated hook |
+|---|---|---|
+| `getTodos` | `builder.query` | `useGetTodosQuery` |
+| `createTodo` | `builder.mutation` | `useCreateTodoMutation` |
+| `searchImages` | `builder.query` | `useSearchImagesQuery` |
+| `deletePost` | `builder.mutation` | `useDeletePostMutation` |
+| `login` | `builder.mutation` | `useLoginMutation` |
+
+---
+
+## Using a query hook
+
+Query hooks accept two arguments: the args to pass to your endpoint's `paramsFn`, and an options object.
+
+```tsx
+const { data, loading, initLoading, error, trigger } = useGetTodosQuery(args, options);
+```
+
+### Return value
+
+| Field | Type | Description |
+|---|---|---|
+| `data` | `Returns \| undefined` | Response data. `undefined` until a successful fetch. |
+| `loading` | `boolean` | `true` while a request is in flight. |
+| `initLoading` | `boolean` | `true` only during the first automatic fetch — useful for skeleton states. |
+| `error` | `Error \| undefined` | Populated when the request fails or returns a non-2xx response. |
+| `trigger` | `(args: Takes) => Promise<Returns \| undefined>` | Manually fire the request. |
+
+### Query options
+
+<AccordionGroup>
+  <Accordion title="fetchOnRender" icon="play">
+    **Type:** `boolean` — **Default:** `false`
+
+    Automatically fire the query when the component first mounts.
+
+    ```tsx
+    const { data } = useGetTodosQuery('', { fetchOnRender: true });
+    ```
+  </Accordion>
+
+  <Accordion title="fetchOnArgsChange" icon="rotate">
+    **Type:** `boolean` — **Default:** `false`
+
+    Re-fire the query whenever the `args` value changes between renders.
+
+    ```tsx
+    const [search, setSearch] = React.useState('');
+    const { data } = useGetTodosQuery(search, { fetchOnArgsChange: true });
+    // Re-fetches every time `search` changes
+    ```
+  </Accordion>
+
+  <Accordion title="debouncedDuration" icon="clock">
+    **Type:** `number` (milliseconds) — **Default:** `0`
+
+    Debounce automatic fetches (triggered by `fetchOnRender` or `fetchOnArgsChange`) by the given number of milliseconds. Ideal for search-as-you-type.
+
+    ```tsx
+    const { data: images } = useSearchImagesQuery(
+      { query, color },
+      { fetchOnArgsChange: true, debouncedDuration: 500 }
+    );
+    // Won't fire until the user stops typing for 500ms
+    ```
+  </Accordion>
+
+  <Accordion title="refetchOnFocus" icon="eye">
+    **Type:** `boolean` — **Default:** `false`
+
+    Re-fire the query when the browser window regains focus. Useful for keeping data fresh when users switch tabs.
+
+    ```tsx
+    const { data } = useGetTodosQuery('', {
+      fetchOnRender: true,
+      refetchOnFocus: true,
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="pollingInterval" icon="arrows-rotate">
+    **Type:** `number` (milliseconds)
+
+    Re-fire the query on a recurring interval. The interval is cleared automatically when the component unmounts.
+
+    ```tsx
+    const { data } = useGetTodosQuery('', {
+      fetchOnRender: true,
+      pollingInterval: 30000, // re-fetch every 30 seconds
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Using a mutation hook
+
+Mutation hooks don't take args upfront — you pass them when you call `trigger`.
+
+```tsx
+const { data, loading, error, trigger } = useCreateTodoMutation();
+```
+
+### Return value
+
+| Field | Type | Description |
+|---|---|---|
+| `data` | `Returns \| undefined` | Response data from the last successful call. |
+| `loading` | `boolean` | `true` while the mutation is in flight. |
+| `error` | `Error \| undefined` | Populated when the request fails. |
+| `trigger` | `(args: Takes) => Promise<Returns \| undefined>` | Fire the mutation. |
+
+### Handling errors
+
+`trigger` throws on failure. Use `try/catch` for imperative error handling:
+
+```tsx
+const { trigger, loading } = useCreateTodoMutation();
+
+async function handleSubmit() {
+  try {
+    const result = await trigger({ title: 'Buy milk' });
+    console.log('Created:', result);
+  } catch (err) {
+    // `error` state is also set automatically
+    console.error('Failed:', err);
+  }
+}
+```
+
+---
+
+## Examples
+
+### Debounced image search
+
+```tsx
+import { useSearchImagesQuery } from './api/pexelsApi';
+
+function ImageSearch() {
+  const [query, setQuery] = React.useState('');
+
+  const { data: images, loading } = useSearchImagesQuery(
+    { query },
+    { fetchOnArgsChange: true, debouncedDuration: 500 }
+  );
+
+  return (
+    <div>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search images..."
+      />
+      {loading && <p>Searching...</p>}
+      <div>
+        {images?.photos.map((img) => (
+          <img key={img.id} src={img.src.medium} alt={img.alt} />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+### Polling with focus refetch
+
+```tsx
+const { data: todos, loading } = useGetTodosQuery('', {
+  fetchOnRender: true,
+  refetchOnFocus: true,
+  pollingInterval: 30000,
+});
+```
+
+This pattern keeps a list fresh both on a 30-second timer and whenever the user returns to the tab.
+
+### Optimistic form submission
+
+```tsx
+function LoginForm() {
+  const [email, setEmail] = React.useState('');
+  const { trigger, loading, error } = useLoginMutation();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await trigger({ email });
+    } catch {
+      // error state is set automatically
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <button type="submit" disabled={loading}>
+        {loading ? 'Logging in...' : 'Log in'}
+      </button>
+      {error && <p style={{ color: 'red' }}>{error.message}</p>}
+    </form>
+  );
+}
+```
