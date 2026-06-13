@@ -81,24 +81,24 @@ providesTags: ['todos']
 invalidatesTags: ['todos']
 ```
 
-### Objects with `key` and `id`
+### Objects with `name` and `id`
 
 Use this for fine-grained per-item invalidation. Useful when you want a mutation to only invalidate the cache for a specific record.
 
 ```ts
 // Query provides a tag for the specific post it fetched
-providesTags: [{ key: 'posts', id: 42 }]
+providesTags: [{ name: 'posts', id: 42 }]
 
 // Mutation only invalidates that specific post's cache, not all posts
-invalidatesTags: [{ key: 'posts', id: 42 }]
+invalidatesTags: [{ name: 'posts', id: 42 }]
 ```
 
 ### Functions
 
-Tags can also be functions that return a string or `{ key, id }` object. The function is called at match time, allowing dynamic tag values.
+Tags can also be functions that receive the query's cached result and return a string or `{ name, id }` object. This lets you derive tags from the actual response data.
 
 ```ts
-providesTags: [(result) => ({ key: 'posts', id: result?.id })]
+providesTags: (result) => result ? [{ name: 'posts', id: result.id }] : []
 ```
 
 ---
@@ -113,7 +113,7 @@ createPost: builder.mutation<NewPost, Post>((body) => ({
   method: 'POST',
   body,
 }), {
-  invalidatesTags: ['posts', 'feed', { key: 'user', id: body.authorId }],
+  invalidatesTags: ['posts', 'feed', { name: 'user', id: body.authorId }],
 }),
 ```
 

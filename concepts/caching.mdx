@@ -56,17 +56,30 @@ Each cache entry stores:
 - The response data
 - The request params (used to re-trigger the query during invalidation)
 - The tags the query provided (used for tag matching during invalidation)
-- A validity flag (`isValid`) that is set to `false` when a matching mutation invalidates it
+- A timestamp and TTL used to compute `isValid` at read time
 
 ---
 
-## Cache lifetime
+## Cache lifetime (TTL)
 
-<Warning>
-  The cache has **no TTL**. Entries remain valid indefinitely until explicitly invalidated by a mutation with a matching `invalidatesTags`.
-</Warning>
+Cache entries expire automatically based on a **TTL (time-to-live)**. The default is **30 seconds**.
 
-If you need data to stay fresh, use `pollingInterval` or `refetchOnFocus` on your query hooks rather than relying on the cache expiring.
+`isValid` is a computed getter — `Date.now() - timeAdded < ttl` — checked every time the cache is read. Expired entries are treated as misses and trigger a fresh network request.
+
+You can override the TTL per query hook call:
+
+```tsx
+useGetTodosQuery('', { fetchOnRender: true, ttl: 60_000 })  // 60 second TTL
+useGetTodosQuery('', { fetchOnRender: true, ttl: -1 })       // never expires
+```
+
+Pass `-1` to disable expiry entirely — the entry stays valid until a mutation explicitly invalidates it.
+
+Writing to the cache (on a successful fetch) always resets the TTL clock, so a cache entry that is actively being refetched never expires mid-session.
+
+<Info>
+  Tag-based invalidation still works independently of TTL. A mutation with a matching `invalidatesTags` will trigger a refetch immediately, regardless of whether the cache entry has expired.
+</Info>
 
 ---
 

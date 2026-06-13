@@ -32,6 +32,31 @@ function useXxxMutation(
 
 ---
 
+## MutationHookOptions
+
+<ParamField body="invalidates" type="TagType<TagString, Returns>">
+  Tags to invalidate when this mutation succeeds — specified at the **call site** rather than at endpoint definition time. These are checked alongside any `invalidatesTags` set on the endpoint itself.
+
+  Useful when the same mutation endpoint needs to bust different caches depending on where it is called.
+
+  ```tsx
+  const { trigger } = useDeletePostMutation();
+
+  // Invalidates both the post list and the feed
+  trigger({ id: 42 }, { invalidates: ['posts', 'feed'] });
+  ```
+
+  Supports all tag forms: plain strings, `{ name, id }` objects, and functions that receive the mutation response:
+
+  ```tsx
+  trigger(args, {
+    invalidates: (res) => res ? [{ name: 'posts', id: res.id }] : [],
+  });
+  ```
+</ParamField>
+
+---
+
 ## Return value
 
 <ResponseField name="data" type="Returns | undefined">
@@ -46,8 +71,8 @@ function useXxxMutation(
   Set when the request throws or returns a non-2xx status. Cleared at the start of each new `trigger` call.
 </ResponseField>
 
-<ResponseField name="trigger" type="(args: Takes) => Promise<Returns | undefined>">
-  Fire the mutation. Throws on failure, so wrap in `try/catch` for imperative error handling.
+<ResponseField name="trigger" type="(args: Takes, options?: MutationHookOptions) => Promise<Returns | undefined>">
+  Fire the mutation. Throws on failure, so wrap in `try/catch` for imperative error handling. Accepts an optional second argument to pass per-call `invalidates` tags.
 </ResponseField>
 
 ---

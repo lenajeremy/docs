@@ -113,6 +113,19 @@ function useXxxQuery(
   ```
 </ParamField>
 
+<ParamField body="ttl" type="number" default="30000">
+  How long (in milliseconds) the cache entry for this query is considered valid. Once expired, the next automatic fetch will go to the network instead of serving from cache.
+
+  The default TTL is **30 seconds**. Writing a new response always resets the clock.
+
+  Pass `-1` to disable expiry entirely — the entry will remain valid until explicitly invalidated by a mutation.
+
+  ```tsx
+  useGetTodosQuery('', { fetchOnRender: true, ttl: 60_000 })  // 60 second TTL
+  useGetTodosQuery('', { fetchOnRender: true, ttl: -1 })       // never expires
+  ```
+</ParamField>
+
 ---
 
 ## Examples
