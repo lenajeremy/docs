@@ -113,6 +113,19 @@ const { data, loading, initLoading, error, trigger } = useGetTodosQuery(args, op
     });
     ```
   </Accordion>
+
+  <Accordion title="refetchOnConnection" icon="wifi">
+    **Type:** `boolean` — **Default:** `false`
+
+    Re-fire the query when the browser comes back online after a network interruption. Listens for the `window online` event.
+
+    ```tsx
+    const { data } = useGetTodosQuery('', {
+      fetchOnRender: true,
+      refetchOnConnection: true,
+    });
+    ```
+  </Accordion>
 </AccordionGroup>
 
 ---

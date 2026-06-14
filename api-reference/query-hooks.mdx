@@ -105,6 +105,14 @@ function useXxxQuery(
   ```
 </ParamField>
 
+<ParamField body="refetchOnConnection" type="boolean" default="false">
+  Re-fire the query when the browser comes back online after a network interruption (via the `window online` event). Useful for keeping data fresh after the user loses and regains connectivity.
+
+  ```tsx
+  useGetTodosQuery('', { fetchOnRender: true, refetchOnConnection: true })
+  ```
+</ParamField>
+
 <ParamField body="pollingInterval" type="number">
   Re-fire the query every N milliseconds using `setInterval`. The interval is started when the component mounts and cleared when it unmounts.
 
@@ -187,12 +195,13 @@ function RefreshButton() {
 }
 ```
 
-### Poll + focus refetch
+### Poll + focus + connection refetch
 
 ```tsx
 const { data } = useGetTodosQuery('', {
   fetchOnRender: true,
-  pollingInterval: 30000,  // refetch every 30s
-  refetchOnFocus: true,    // also refetch on tab focus
+  pollingInterval: 30000,     // refetch every 30s
+  refetchOnFocus: true,       // also refetch on tab focus
+  refetchOnConnection: true,  // also refetch when coming back online
 });
 ```

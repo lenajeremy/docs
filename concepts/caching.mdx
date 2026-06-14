@@ -32,6 +32,8 @@ trigger(args)
   │
   ├─ Resolve full request params (baseUrl + url + params + headers)
   │
+  ├─ Request already in-flight? ──→ YES ──→ Attach to existing request (no duplicate network call)
+  │
   ├─ Generate SHA-256 cache key
   │
   ├─ Cache hit? ──→ YES ──→ Return cached value immediately (no network request)
@@ -45,6 +47,16 @@ trigger(args)
 <Note>
   Cache lookup only happens when `fetchFromCache` is `true` — which is the case for all automatic fetches (`fetchOnRender`, `fetchOnArgsChange`). Manually calling `trigger` always goes to the network.
 </Note>
+
+---
+
+## In-flight request deduplication
+
+If the same query is triggered twice before the first response arrives — for example, `fetchOnRender` fires and the user also clicks a refresh button — only **one** network request goes out. The second call attaches to the first request's in-flight promise and both callers receive the same response when it resolves.
+
+Each caller still gets its own independent loading and error state, so both components show a spinner and both update when the data arrives.
+
+The dedup key is derived from the resolved URL, HTTP method, and request headers. Requests with different `Authorization` headers (different users or auth tokens) are always treated as distinct requests and never deduplicated.
 
 ---
 
